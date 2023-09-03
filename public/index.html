@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link rel="stylesheet" href="style.css" />
+    <title>Websocket com Go</title>
+  </head>
+  <body>
+    <div id="app">
+      <div class="container" v-if="!connected">
+        <div class="form">
+          <input
+            class="input"
+            v-model="nickname"
+            type="text"
+            placeholder="nickname"
+          />
+          <button class="button" @click="connect()">Entrar</button>
+        </div>
+      </div>
+
+      <div class="painel-usuarios" v-if="connected">
+        <label>Usuários Conectados</label>
+        <p v-for="user in usuarios">{{user.Nickname}}</p>
+      </div>
+
+      <div class="container" v-if="connected">
+        <label
+          >Olá, {{nickname}} <a href="#" @click="disconnect()">Sair</a></label
+        >
+
+        <form class="form" @submit.prevent="sendMessage()">
+          <input class="input" v-model="message" placeholder="mensagem" />
+          <button class="button" type="submit">Enviar</button>
+        </form>
+
+        <ul class="chat-messages">
+          <li
+            v-for="(msg, idx) in messages"
+            :key="idx"
+            class="message"
+            :class="[msg.From == this.nickname ? 'message-right' : '']"
+          >
+            <div :title="msg.From" class="message-avatar">
+              {{msg?.From.substr(0,2).toUpperCase() || 'AN'}}
+            </div>
+            <div class="message-content">
+              <p class="message-text">{{msg.Content}}</p>
+              <p class="message-timestamp">{{ msg.SentAt }}</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <script>
+      const { createApp, ref } = Vue;
+
+      createApp({
+        data() {
+          return {
+            nickname: "",
+            connected: false,
+            ws: null,
+            message: "",
+            messages: [],
+            usuarios: [],
+          };
+        },
+        methods: {
+          sendMessage() {
+            const msg = {
+              From: this.nickname,
+              Content: this.message,
+            };
+            this.ws.send(JSON.stringify(msg));
+            this.message = "";
+          },
+          onOpen(event) {
+            this.connected = true;
+          },
+          onMessage(event) {
+            this.messages.push(JSON.parse(event.data));
+            this.updateUsuarios();
+          },
+          disconnect() {
+            this.ws.close();
+            this.connected = false;
+            this.ws = null;
+            this.message = "";
+            this.messages = [];
+            this.usuarios = [];
+          },
+          connect() {
+            this.ws = new WebSocket(
+              "wss://127.0.0.1:8080/ws?nickname=" + this.nickname
+            );
+            this.ws.onopen = this.onOpen;
+            this.ws.onmessage = this.onMessage;
+          },
+          async updateUsuarios() {
+            const res = await fetch("/clients");
+            const clients = await res.json();
+            this.usuarios = clients;
+          },
+        },
+      }).mount("#app");
+    </script>
+  </body>
+</html>
