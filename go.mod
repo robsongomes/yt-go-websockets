@@ -1,4 +1,4 @@
-module yt-go-websockets
+module github.com/robsongomes/yt-go-websockets
 
 go 1.19
 
